@@ -1,0 +1,23 @@
+azure:
+  tenant_id: "your-tenant-id"
+  client_id: "your-client-id"
+  client_secret: "your-client-secret"
+  owner_id: "default-owner-user-id"  # This will be the user who creates/owns the chat
+
+graph_api:
+  base_url: "https://graph.microsoft.com/v1.0"
+  scopes:
+    - "https://graph.microsoft.com/.default"
+
+ai_services:
+  openai:
+    api_key: "your-openai-api-key"
+    model: "gpt-4"  # or gpt-3.5-turbo
+    max_tokens: 1000
+    temperature: 0.7
+  
+  anthropic:
+    api_key: "your-anthropic-api-key"
+    model: "claude-3-sonnet-20240229"  # or other Claude model
+    max_tokens: 1000
+    temperature: 0.7
