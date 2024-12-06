@@ -1,6 +1,9 @@
 # Ignore config.yaml file
 config.yaml
 
+# Ignore venv folder
+chatonteams/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
