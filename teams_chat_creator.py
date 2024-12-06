@@ -5,7 +5,7 @@ import yaml
 import sys
 import time
 from datetime import datetime
-from msgraph.core import GraphClient
+from msgraph import GraphServiceClient
 from azure.identity import ClientSecretCredential
 import openai
 from anthropic import Anthropic
@@ -53,7 +53,7 @@ class TeamsGroupChatCreator:
             client_id=self.config['azure']['client_id'],
             client_secret=self.config['azure']['client_secret']
         )
-        self.graph_client = GraphClient(credential=self.credential)
+        self.graph_client = GraphServiceClient(self.credential)
         
         # Initialize AI handler if service is specified
         self.ai_handler = AIHandler(self.config, ai_service) if ai_service else None
