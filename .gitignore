@@ -1,6 +1,9 @@
 # Ignore config.yaml file
 config.yaml
 
+# Ignore .cursorrules file
+.cursorrules
+
 # Ignore venv folder
 chatonteams/
 
