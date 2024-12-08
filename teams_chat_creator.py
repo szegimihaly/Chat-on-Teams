@@ -1,196 +1,87 @@
 #!/usr/bin/env python3
 
 import argparse
+import asyncio
 import yaml
 import sys
-import time
-from datetime import datetime
-from msgraph import GraphServiceClient
-from azure.identity import ClientSecretCredential
-import openai
-from anthropic import Anthropic
+from ai_handler import AIHandler
+from teams_chat import TeamsGroupChatCreator
+from utils.logger import setup_logger
+from colorama import Fore, Style
 
-class AIHandler:
-    def __init__(self, config, service_type):
-        self.service_type = service_type
-        self.config = config.get('ai_services', {})
-        
-        if service_type == 'openai':
-            openai.api_key = self.config['openai']['api_key']
-        elif service_type == 'claude':
-            self.anthropic = Anthropic(api_key=self.config['anthropic']['api_key'])
+async def async_main(args):
+    # Setup logger
+    logger = setup_logger(args.debug)
     
-    def get_ai_response(self, prompt):
-        try:
-            if self.service_type == 'openai':
-                response = openai.ChatCompletion.create(
-                    model=self.config['openai']['model'],
-                    messages=[{"role": "user", "content": prompt}],
-                    max_tokens=self.config['openai']['max_tokens'],
-                    temperature=self.config['openai']['temperature']
-                )
-                return response.choices[0].message.content
-                
-            elif self.service_type == 'claude':
-                response = self.anthropic.messages.create(
-                    model=self.config['anthropic']['model'],
-                    max_tokens=self.config['anthropic']['max_tokens'],
-                    temperature=self.config['anthropic']['temperature'],
-                    messages=[{"role": "user", "content": prompt}]
-                )
-                return response.content[0].text
-                
-        except Exception as e:
-            return f"Error getting AI response: {str(e)}"
-
-class TeamsGroupChatCreator:
-    def __init__(self, config_path, ai_service=None):
-        with open(config_path, 'r') as config_file:
-            self.config = yaml.safe_load(config_file)
-        
-        self.credential = ClientSecretCredential(
-            tenant_id=self.config['azure']['tenant_id'],
-            client_id=self.config['azure']['client_id'],
-            client_secret=self.config['azure']['client_secret']
-        )
-        self.graph_client = GraphServiceClient(self.credential)
-        
-        # Initialize AI handler if service is specified
-        self.ai_handler = AIHandler(self.config, ai_service) if ai_service else None
-        self.chat_id = None
-
-    def create_group_chat(self, chat_name, members):
-        # Prepare the chat creation request
-        chat_request = {
-            "chatType": "group",
-            "topic": chat_name,
-            "members": [
-                {
-                    "@odata.type": "#microsoft.graph.aadUserConversationMember",
-                    "roles": ["owner"],
-                    "user@odata.bind": f"https://graph.microsoft.com/v1.0/users/{self.config['azure']['owner_id']}"
-                }
-            ]
-        }
-
-        # Add members to the request
-        for member in members:
-            chat_request["members"].append({
-                "@odata.type": "#microsoft.graph.aadUserConversationMember",
-                "roles": [],
-                "user@odata.bind": f"https://graph.microsoft.com/v1.0/users/{member}"
-            })
-
-        # Create the chat
-        response = self.graph_client.post(
-            "/v1.0/chats",
-            json=chat_request
-        )
-        
-        if response.status_code == 201:
-            chat_data = response.json()
-            print(f"Successfully created group chat: {chat_data['id']}")
-            return chat_data
+    try:
+        if args.ai_chat_only:
+            if not args.ai_service:
+                raise ValueError("--ai-service must be specified when using --ai-chat-only")
+            
+            logger.debug(f"Starting AI chat only mode with {args.ai_service}")
+            with open(args.config, 'r') as config_file:
+                config = yaml.safe_load(config_file)
+            
+            logger.debug("Initializing AI handler")
+            ai_handler = AIHandler(config, args.ai_service, logger)
+            logger.chat(f"\nStarting AI chat session with {args.ai_service.upper()}", color='chat_system')
+            logger.chat("Commands:", color='chat_system')
+            logger.chat("  /exit or /bye - End the session", color='chat_system')
+            logger.chat("  /clear - Clear conversation history", color='chat_system')
+            logger.chat("----------------------------------------", color='chat_system')
+            
+            while True:
+                try:
+                    user_input = input(f"{Fore.GREEN}chat> {Style.RESET_ALL}").strip()
+                    if user_input.lower() in ['/exit', '/bye']:
+                        logger.chat("\nEnding chat session...", color='chat_system')
+                        break
+                    elif user_input.lower() == '/clear':
+                        ai_handler.clear_conversation()
+                        logger.chat("\nConversation history cleared.", color='chat_system')
+                    elif user_input:
+                        logger.debug(f"Sending prompt to AI: {user_input}")
+                        response, model = ai_handler.get_ai_response(user_input)
+                        logger.chat(f"\n{model}: {response}\n", color='chat_ai')
+                except KeyboardInterrupt:
+                    logger.chat("\nEnding chat session...", color='chat_system')
+                    break
+                except EOFError:
+                    break
         else:
-            raise Exception(f"Failed to create chat: {response.text}")
-
-    def send_chat_message(self, message_content):
-        if not self.chat_id:
-            raise Exception("Chat ID not set")
+            if not args.name or not args.members:
+                raise ValueError("--name and --members are required when not using --ai-chat-only")
             
-        message_request = {
-            "body": {
-                "content": message_content
-            }
-        }
-        
-        response = self.graph_client.post(
-            f"/v1.0/chats/{self.chat_id}/messages",
-            json=message_request
-        )
-        
-        if response.status_code != 201:
-            raise Exception(f"Failed to send message: {response.text}")
-
-    def monitor_chat(self, chat_id, duration_minutes=10):
-        self.chat_id = chat_id
-        end_time = time.time() + (duration_minutes * 60)
-        last_message_id = None
-        
-        print(f"\nMonitoring chat for {duration_minutes} minutes...")
-        print("----------------------------------------")
-        if self.ai_handler:
-            print("AI Integration enabled - Use '!hi AI!' to interact with the AI")
-
-        while time.time() < end_time:
-            try:
-                # Get chat messages
-                response = self.graph_client.get(
-                    f"/v1.0/chats/{chat_id}/messages?$top=50&$orderby=createdDateTime desc"
-                )
-                
-                if response.status_code == 200:
-                    messages = response.json().get('value', [])
-                    
-                    for message in reversed(messages):
-                        if message['id'] != last_message_id:
-                            created_time = datetime.fromisoformat(message['createdDateTime'].replace('Z', '+00:00'))
-                            from_user = message.get('from', {}).get('user', {}).get('displayName', 'Unknown')
-                            content = message.get('body', {}).get('content', '')
-                            
-                            print(f"\n[{created_time.strftime('%Y-%m-%d %H:%M:%S')}] {from_user}:")
-                            print(f"{content}")
-                            
-                            # Handle AI interaction
-                            if self.ai_handler and content.startswith('!hi AI!'):
-                                prompt = content[8:].strip()  # Remove '!hi AI!' prefix
-                                if prompt:
-                                    print("\nProcessing AI request...")
-                                    ai_response = self.ai_handler.get_ai_response(prompt)
-                                    self.send_chat_message(f"AI Response:\n{ai_response}")
-                            
-                            last_message_id = message['id']
-                
-                # Get chat members status
-                members_response = self.graph_client.get(
-                    f"/v1.0/chats/{chat_id}/members"
-                )
-                
-                if members_response.status_code == 200:
-                    members = members_response.json().get('value', [])
-                    for member in members:
-                        display_name = member.get('displayName', 'Unknown')
-                        roles = member.get('roles', [])
-                        role_str = ' (Owner)' if 'owner' in roles else ''
-                        print(f"\nMember: {display_name}{role_str}")
-
-            except Exception as e:
-                print(f"Error while monitoring chat: {str(e)}", file=sys.stderr)
+            logger.debug("Loading configuration file")
+            with open(args.config, 'r') as config_file:
+                config = yaml.safe_load(config_file)
             
-            time.sleep(5)
+            logger.debug(f"Initializing Teams chat creator with AI service: {args.ai_service}")
+            ai_handler = AIHandler(config, args.ai_service, logger) if args.ai_service else None
+            creator = TeamsGroupChatCreator(config, ai_handler, logger)
+            
+            members = [m.strip() for m in args.members.split(',')]
+            logger.debug(f"Creating chat '{args.name}' with members: {members}")
+            
+            chat_data = await creator.create_group_chat(args.name, members)
+            await creator.monitor_chat(chat_data.id, args.monitor_time)
+        
+    except Exception as e:
+        logger.error(f"Error: {str(e)}")
+        sys.exit(1)
 
 def main():
     parser = argparse.ArgumentParser(description='Create MS Teams group chat and invite members')
     parser.add_argument('--config', required=True, help='Path to the configuration YAML file')
-    parser.add_argument('--name', required=True, help='Name of the group chat')
-    parser.add_argument('--members', required=True, help='Comma-separated list of member IDs')
+    parser.add_argument('--name', help='Name of the group chat')
+    parser.add_argument('--members', help='Comma-separated list of member IDs')
     parser.add_argument('--monitor-time', type=int, default=10, help='Time in minutes to monitor the chat (default: 10)')
     parser.add_argument('--ai-service', choices=['openai', 'claude'], help='Enable AI integration with specified service')
+    parser.add_argument('--ai-chat-only', action='store_true', help='Start an AI chat session without Teams integration')
+    parser.add_argument('--debug', action='store_true', help='Enable debug logging')
 
     args = parser.parse_args()
-    
-    try:
-        creator = TeamsGroupChatCreator(args.config, args.ai_service)
-        members = [m.strip() for m in args.members.split(',')]
-        
-        chat_data = creator.create_group_chat(args.name, members)
-        creator.monitor_chat(chat_data['id'], args.monitor_time)
-        
-    except Exception as e:
-        print(f"Error: {str(e)}", file=sys.stderr)
-        sys.exit(1)
-    
-    print("\nChat monitoring completed.")
+    asyncio.run(async_main(args))
 
 if __name__ == "__main__":
     main() 

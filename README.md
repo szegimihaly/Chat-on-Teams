@@ -1,16 +1,20 @@
 # Teams Chat Creator
 
-A command-line application that creates Microsoft Teams group chats, invites members, monitors chat activity, and optionally integrates with AI services (OpenAI GPT or Anthropic Claude) for interactive responses.
+A command-line application that creates Microsoft Teams group chats, invites members, monitors chat activity, and optionally integrates with AI services (OpenAI GPT or Anthropic Claude) for interactive responses. The application can be used via command line or through a modern web interface.
 
 - [Teams Chat Creator](#teams-chat-creator)
   - [Features](#features)
   - [Prerequisites](#prerequisites)
   - [Installation](#installation)
+    - [Setting up Python Virtual Environment](#setting-up-python-virtual-environment)
   - [Configuration](#configuration)
   - [Usage](#usage)
+    - [Running the Web Interface](#running-the-web-interface)
+    - [AI-Only Mode](#ai-only-mode)
     - [Basic Usage (Without AI)](#basic-usage-without-ai)
     - [AI Integration](#ai-integration)
     - [Custom Monitoring Duration](#custom-monitoring-duration)
+  - [Web Interface Features](#web-interface-features)
   - [Command Line Arguments](#command-line-arguments)
   - [AI Integration Features](#ai-integration-features)
   - [Output Format](#output-format)
@@ -25,10 +29,12 @@ A command-line application that creates Microsoft Teams group chats, invites mem
 - Monitor chat activity in real-time
 - Display chat messages with timestamps
 - Show member status and roles
+- Modern web interface with dark mode support
 - AI integration (optional)
   - Support for OpenAI GPT models
   - Support for Anthropic Claude models
   - Interactive AI responses triggered by chat messages
+  - AI-only mode for direct AI interactions
 
 ## Prerequisites
 
@@ -43,8 +49,22 @@ A command-line application that creates Microsoft Teams group chats, invites mem
 
 ## Installation
 
-1. Clone the repository or download the source code
-2. Install the required dependencies:
+### Setting up Python Virtual Environment
+
+1. Create a new virtual environment:
+
+```bash
+# Windows
+python -m venv venv
+venv\Scripts\activate
+
+# Linux/macOS
+python3 -m venv venv
+source venv/bin/activate
+```
+
+2. Clone the repository or download the source code
+3. Install the required dependencies:
 
 ```bash
 pip install -r requirements.txt
@@ -79,6 +99,50 @@ ai_services:
 
 ## Usage
 
+### Running the Web Interface
+
+1. Start the web server:
+
+```bash
+python web_app.py
+```
+
+2. Open your web browser and navigate to:
+
+```text
+http://localhost:8000
+```
+
+The web interface provides:
+
+- Real-time chat monitoring
+- Easy AI service connection
+- Dark/Light mode toggle
+- Debug mode for troubleshooting
+- Responsive design for all screen sizes
+
+### AI-Only Mode
+
+You can use the application in AI-only mode to interact directly with AI services without Teams integration:
+
+```bash
+python teams_chat_creator.py --config config.yaml --ai-only --ai-service openai
+```
+
+Or through the web interface:
+
+1. Open the web UI
+2. Click either "Connect OpenAI" or "Connect Claude"
+3. Start chatting directly with the AI
+
+Features in AI-only mode:
+
+- Direct AI interactions without Teams
+- Switch between AI services
+- Full chat history
+- Debug logging
+- All AI capabilities without Microsoft Teams requirements
+
 ### Basic Usage (Without AI)
 
 Create a group chat and monitor it for 10 minutes:
@@ -108,6 +172,37 @@ Monitor the chat for a specific duration (e.g., 30 minutes):
 ```bash
 python teams_chat_creator.py --config config.yaml --name "Custom Duration Chat" --members "user1@example.com,user2@example.com" --monitor-time 30 --ai-service openai
 ```
+
+## Web Interface Features
+
+The web interface provides several features for easy interaction:
+
+1. Connection Management:
+   - Connect to OpenAI or Claude with one click
+   - Visual indicators for active connections
+   - Easy service switching
+
+2. Chat Interface:
+   - Clean, modern design
+   - Message history with clear sender identification
+   - Easy-to-use input field
+   - Send button and Enter key support
+
+3. Debug Features:
+   - Toggle debug mode for detailed logs
+   - Real-time connection status
+   - Message delivery confirmation
+   - Service state monitoring
+
+4. Theme Support:
+   - Dark mode for reduced eye strain
+   - Light mode for high contrast
+   - Persistent theme selection
+
+5. Responsive Design:
+   - Works on desktop and mobile devices
+   - Adaptive layout for different screen sizes
+   - Touch-friendly interface
 
 ## Command Line Arguments
 

@@ -10,7 +10,7 @@ from msgraph.generated.models.chat import Chat
 from msgraph.generated.models.chat_type import ChatType
 from msgraph.generated.models.conversation_member import ConversationMember
 from msgraph.generated.models.aad_user_conversation_member import AadUserConversationMember
-
+ 
 def load_config(config_file):
     with open(config_file, 'r') as file:
         return yaml.safe_load(file)

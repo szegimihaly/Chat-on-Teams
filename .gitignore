@@ -3,6 +3,7 @@ config.yaml
 
 # Ignore .cursorrules file
 .cursorrules
+.cursorrules.archive
 
 # Ignore venv folder
 chatonteams/

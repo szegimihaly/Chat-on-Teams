@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-gray-100 dark:bg-gray-900">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teams AI Chat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+
+        // Initialize theme - default to dark
+        if (!localStorage.theme) {
+            localStorage.theme = 'dark';
+            document.documentElement.classList.add('dark');
+        } else if (localStorage.theme === 'dark') {
+            document.documentElement.classList.add('dark');
+        }
+
+        function toggleTheme() {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                localStorage.theme = 'light';
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.theme = 'dark';
+            }
+        }
+    </script>
+</head>
+<body class="h-full">
+    <div class="min-h-full">
+        <!-- Static sidebar for desktop -->
+        <div class="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
+            <!-- Sidebar component -->
+            <div class="flex grow flex-col gap-y-5 overflow-y-auto border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-6 pb-4">
+                <div class="flex h-16 shrink-0 items-center">
+                    <div class="flex items-center gap-x-3">
+                        <div class="rounded-lg bg-indigo-600 p-2">
+                            <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-4l-4 4z"/>
+                            </svg>
+                        </div>
+                        <span class="text-lg font-semibold text-gray-900 dark:text-white">Teams AI Chat</span>
+                    </div>
+                </div>
+                <nav class="flex flex-1 flex-col">
+                    <ul role="list" class="flex flex-1 flex-col gap-y-4">
+                        <li>
+                            <button id="openai-btn" onclick="initService('openai')" class="w-full group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800">
+                                <svg class="h-6 w-6 shrink-0 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                </svg>
+                                Connect OpenAI
+                            </button>
+                        </li>
+                        <li>
+                            <button id="claude-btn" onclick="initService('claude')" class="w-full group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800">
+                                <svg class="h-6 w-6 shrink-0 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                                </svg>
+                                Connect Claude
+                            </button>
+                        </li>
+                        <li>
+                            <div class="text-xs font-semibold leading-6 text-gray-400">Actions</div>
+                            <ul role="list" class="mt-2 space-y-1">
+                                <li>
+                                    <button onclick="clearChat()" class="w-full group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800">
+                                        <svg class="h-6 w-6 shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                        </svg>
+                                        Clear Chat
+                                    </button>
+                                </li>
+                                <li>
+                                    <button id="debug-btn" onclick="toggleDebugMode()" class="w-full group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800">
+                                        <svg class="h-6 w-6 shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                        </svg>
+                                        Debug Mode
+                                    </button>
+                                </li>
+                                <li>
+                                    <button onclick="shutdownServer()" class="w-full group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/50">
+                                        <svg class="h-6 w-6 shrink-0 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                                        </svg>
+                                        Shutdown
+                                    </button>
+                                </li>
+                            </ul>
+                        </li>
+                        <li class="-mx-6 mt-auto">
+                            <button onclick="toggleTheme()" class="flex items-center gap-x-4 px-6 py-3 text-sm font-semibold leading-6 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800">
+                                <svg class="h-6 w-6 text-gray-400 dark:text-gray-200 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+                                </svg>
+                                <svg class="h-6 w-6 text-gray-400 dark:text-gray-200 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                                </svg>
+                                <span class="sr-only">Toggle theme</span>
+                            </button>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+
+        <!-- Debug Panel (Floating) -->
+        <div id="debug-panel" class="hidden fixed bottom-4 right-4 w-96 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50">
+            <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                <div class="flex items-center space-x-2">
+                    <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
+                    </svg>
+                    <h2 class="text-sm font-semibold text-gray-900 dark:text-white">Debug Panel</h2>
+                </div>
+                <button onclick="clearDebugMessages()" 
+                        class="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700">
+                    Clear Logs
+                </button>
+            </div>
+            <div id="debug-messages" class="p-4 h-96 overflow-y-auto font-mono text-xs space-y-1 bg-gray-50 dark:bg-gray-900/50">
+            </div>
+        </div>
+
+        <main class="lg:pl-72">
+            <div class="h-screen flex flex-col">
+                <!-- Main chat area -->
+                <div class="flex-1 min-h-0 p-4">
+                    <div class="h-full bg-white dark:bg-gray-800 shadow-sm rounded-lg flex flex-col">
+                        <!-- Messages area -->
+                        <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4"></div>
+
+                        <!-- Input area -->
+                        <div class="p-4 border-t border-gray-200 dark:border-gray-700">
+                            <div class="flex space-x-4">
+                                <input type="text" 
+                                       id="message-input"
+                                       class="block w-full rounded-md border-0 px-4 py-2.5 text-gray-900 dark:text-white shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 dark:focus:ring-indigo-500 dark:bg-gray-900 sm:text-sm sm:leading-6"
+                                       placeholder="Type your message..."
+                                       onkeypress="handleKeyPress(event)">
+                                <button onclick="sendMessage()" 
+                                        class="rounded-md bg-indigo-600 dark:bg-indigo-500 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 dark:hover:bg-indigo-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:focus-visible:outline-indigo-500">
+                                    Send
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        let isOpenAIConnected = false;
+        let isClaudeConnected = false;
+        let isDebugMode = false;
+
+        function updateButtonStates() {
+            const openaiBtn = document.getElementById('openai-btn');
+            const claudeBtn = document.getElementById('claude-btn');
+            const debugBtn = document.getElementById('debug-btn');
+
+            openaiBtn.className = `w-full group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 ${
+                isOpenAIConnected 
+                    ? 'text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/50' 
+                    : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'
+            }`;
+
+            claudeBtn.className = `w-full group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 ${
+                isClaudeConnected 
+                    ? 'text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/50' 
+                    : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'
+            }`;
+
+            debugBtn.className = `w-full group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 ${
+                isDebugMode 
+                    ? 'text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/50' 
+                    : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'
+            }`;
+        }
+
+        // Add message styles for chat bubbles
+        function addMessage(message, type) {
+            const messagesDiv = document.getElementById('chat-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'flex ' + (type === 'user' ? 'justify-end' : 'justify-start');
+            
+            const innerDiv = document.createElement('div');
+            innerDiv.className = `max-w-[80%] rounded-lg p-4 ${
+                type === 'user' 
+                    ? 'bg-indigo-600 text-white' 
+                    : type === 'ai' 
+                        ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white' 
+                        : type === 'system' 
+                            ? 'bg-yellow-50 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-100 mx-auto text-center' 
+                            : 'bg-red-50 dark:bg-red-900/50 text-red-800 dark:text-red-100 mx-auto text-center'
+            }`;
+            
+            innerDiv.textContent = message;
+            messageDiv.appendChild(innerDiv);
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function addDebugMessage(message) {
+            const debugMessages = document.getElementById('debug-messages');
+            const messageDiv = document.createElement('div');
+            const timestamp = new Date().toLocaleTimeString();
+            messageDiv.className = 'py-1 border-b border-gray-100 dark:border-gray-800 last:border-0';
+            
+            // Create timestamp element
+            const timestampSpan = document.createElement('span');
+            timestampSpan.className = 'text-gray-400 dark:text-gray-500 mr-2';
+            timestampSpan.textContent = `[${timestamp}]`;
+            
+            // Create message element
+            const messageSpan = document.createElement('span');
+            messageSpan.className = 'text-gray-700 dark:text-gray-300';
+            messageSpan.textContent = message;
+            
+            messageDiv.appendChild(timestampSpan);
+            messageDiv.appendChild(messageSpan);
+            debugMessages.appendChild(messageDiv);
+            debugMessages.scrollTop = debugMessages.scrollHeight;
+        }
+
+        let ws;
+        const clientId = Date.now().toString();
+        
+        function connect() {
+            ws = new WebSocket(`ws://${window.location.host}/ws/${clientId}`);
+            
+            ws.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                if (data.type === 'debug') {
+                    addDebugMessage(data.content);
+                } else if (data.type === 'chat_debug') {
+                    // Handle chat debug messages
+                    addDebugMessage(`Chat: ${data.content}`);
+                } else if (data.type === 'service_debug') {
+                    // Handle service-related debug messages
+                    addDebugMessage(`Service: ${data.content}`);
+                } else {
+                    addMessage(data.content, data.type);
+                    // Add debug info for chat messages if debug mode is enabled
+                    if (isDebugMode) {
+                        addDebugMessage(`Message sent (${data.type}): ${data.content}`);
+                    }
+                }
+            };
+            
+            ws.onclose = function() {
+                addMessage("Connection closed", "system");
+                if (isDebugMode) {
+                    addDebugMessage("WebSocket connection closed");
+                }
+                isOpenAIConnected = false;
+                isClaudeConnected = false;
+                updateButtonStates();
+                setTimeout(connect, 1000);
+            };
+
+            ws.onopen = function() {
+                addMessage("Connected to server", "system");
+                if (isDebugMode) {
+                    addDebugMessage("WebSocket connection established");
+                }
+            };
+
+            ws.onerror = function(error) {
+                if (isDebugMode) {
+                    addDebugMessage(`WebSocket error: ${error.message || 'Unknown error'}`);
+                }
+            };
+        }
+        
+        function initService(serviceType) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                if (isDebugMode) {
+                    addDebugMessage(`Initializing ${serviceType} service...`);
+                }
+                ws.send(JSON.stringify({
+                    command: "init",
+                    service_type: serviceType
+                }));
+                if (serviceType === 'openai') {
+                    isOpenAIConnected = true;
+                } else if (serviceType === 'claude') {
+                    isClaudeConnected = true;
+                }
+                updateButtonStates();
+            }
+        }
+        
+        function sendMessage() {
+            const input = document.getElementById('message-input');
+            const message = input.value.trim();
+            
+            if (message && ws && ws.readyState === WebSocket.OPEN) {
+                if (isDebugMode) {
+                    addDebugMessage(`Sending message: ${message}`);
+                }
+                addMessage(`You: ${message}`, 'user');
+                ws.send(JSON.stringify({
+                    command: "chat",
+                    message: message
+                }));
+                input.value = '';
+            }
+        }
+        
+        function clearChat() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                if (isDebugMode) {
+                    addDebugMessage("Clearing chat history...");
+                }
+                ws.send(JSON.stringify({
+                    command: "chat",
+                    message: "/clear"
+                }));
+                document.getElementById('chat-messages').innerHTML = '';
+            }
+        }
+        
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+        
+        async function shutdownServer() {
+            if (confirm('Are you sure you want to shutdown the server?')) {
+                try {
+                    const response = await fetch('/shutdown', {
+                        method: 'POST',
+                    });
+                    const data = await response.json();
+                    addMessage(data.message, 'system');
+                    
+                    if (ws) {
+                        ws.close();
+                    }
+                    
+                    document.getElementById('message-input').disabled = true;
+                    document.querySelectorAll('button').forEach(button => {
+                        button.disabled = true;
+                        button.classList.add('opacity-50');
+                    });
+                    
+                    addMessage("Application shutdown complete. You can close this window.", 'system');
+                } catch (error) {
+                    addMessage("Error shutting down server: " + error, 'error');
+                }
+            }
+        }
+
+        function toggleDebugMode() {
+            isDebugMode = !isDebugMode;
+            const debugPanel = document.getElementById('debug-panel');
+            debugPanel.classList.toggle('hidden');
+            updateButtonStates();
+            
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    command: "debug",
+                    enabled: isDebugMode
+                }));
+                // Add initial debug message
+                if (isDebugMode) {
+                    addDebugMessage("Debug mode enabled");
+                    addDebugMessage("WebSocket state: " + 
+                        (ws.readyState === 0 ? "CONNECTING" :
+                         ws.readyState === 1 ? "OPEN" :
+                         ws.readyState === 2 ? "CLOSING" : "CLOSED"));
+                    addDebugMessage("OpenAI Connected: " + isOpenAIConnected);
+                    addDebugMessage("Claude Connected: " + isClaudeConnected);
+                }
+            }
+        }
+
+        function clearDebugMessages() {
+            const debugMessages = document.getElementById('debug-messages');
+            debugMessages.innerHTML = '';
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    command: "debug_clear"
+                }));
+                addDebugMessage("Debug logs cleared");
+            }
+        }
+        
+        connect();
+        updateButtonStates();
+    </script>
+</body>
+</html> 
